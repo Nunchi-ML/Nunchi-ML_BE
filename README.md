@@ -4,7 +4,7 @@
 
 # Nunchi-ML_BE
 
-예측 API
+모델 결과 · 예측 API — 머신러닝 결과 웹사이트에 데이터를 줘요
 
 ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white) ![scikit--learn](https://img.shields.io/badge/scikit--learn-F7931E?style=flat-square&logo=scikitlearn&logoColor=white)
 
@@ -16,7 +16,7 @@
 
 ## 👥 담당
 
-<a href="https://github.com/FAITRUEE"><img src="https://github.com/FAITRUEE.png" width="48" alt="이성진"/></a> 이성진 (BE)
+BE (1일차에 정해요)
 
 ## 📁 폴더
 
@@ -30,7 +30,8 @@
 | 메서드 | 경로 | 설명 |
 |---|---|---|
 | `GET` | `/health` | 서버 · 모델 로드 상태 |
-| `POST` | `/predict` | 입력 1건 → 예측 결과 · 확률 · 크게 작용한 변수 |
+| `GET` | `/models` | 모델별 검증 점수 · 최종 모델 · 중요 변수 (모델 비교 · 중요 변수 화면) |
+| `POST` | `/predict` | 입력 1건 → 예측 결과 · 확률 · 크게 작용한 변수 (예측해 보기 화면) |
 
 ## 📌 원칙
 
