@@ -4,9 +4,9 @@
 
 # Nunchi-ML_BE
 
-모델 결과 · 예측 API — 머신러닝 결과 웹사이트에 데이터를 줘요
+눈부심 예측 API — 시뮬레이터에 모델 ① · ② 예측을 줘요
 
-![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white) ![scikit--learn](https://img.shields.io/badge/scikit--learn-F7931E?style=flat-square&logo=scikitlearn&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white) ![scikit--learn](https://img.shields.io/badge/scikit--learn-F7931E?style=flat-square&logo=scikitlearn&logoColor=white) ![LightGBM](https://img.shields.io/badge/LightGBM-2E7D32?style=flat-square) ![Render](https://img.shields.io/badge/Render-46E3B7?style=flat-square&logo=render&logoColor=black)
 
 [![Notion](https://img.shields.io/badge/Notion-%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8%20%ED%99%88-000000?style=flat-square&logo=notion&logoColor=white)](https://app.notion.com/p/40554fa7e143815680c0cfb0ff414d78) [![GitHub](https://img.shields.io/badge/GitHub-Nunchi--ML-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/Nunchi-ML)
 
@@ -16,7 +16,7 @@
 
 ## 👥 담당
 
-BE (1일차에 정해요)
+BE · PM
 
 ## 📁 폴더
 
@@ -30,14 +30,18 @@ BE (1일차에 정해요)
 | 메서드 | 경로 | 설명 |
 |---|---|---|
 | `GET` | `/health` | 서버 · 모델 로드 상태 |
-| `GET` | `/models` | 모델별 검증 점수 · 최종 모델 · 중요 변수 (모델 비교 · 중요 변수 화면) |
-| `POST` | `/predict` | 입력 1건 → 예측 결과 · 확률 · 크게 작용한 변수 (예측해 보기 화면) |
+| `GET` | `/segments?road=달구벌대로` | 구간별 도로 정보 + 모델 ① 예측 사고 건수 (위험 지도 · 역 배너) |
+| `POST` | `/predict/risk` | 날짜 · 시간 · 구간 → 그 순간의 눈부심 위험도 |
+| `POST` | `/predict/glare` | 화면에서 뽑은 숫자 → 정상 / 눈부심 / 심한 눈부심 + 확률 (모델 ②) |
+| `GET` | `/models` | 모델 ① · ② 버전 · 검증 점수 · 중요 변수 (모델 결과 화면) |
 
 ## 📌 원칙
 
 - 처음엔 같은 형식을 돌려주는 **가짜 모델**로 만들고, AI 저장소 Release의 파이프라인 파일로 교체합니다
 - 서비스 쪽에서 **전처리를 다시 짜지 않습니다** (전처리는 파이프라인 파일 안에 있습니다)
 - **scikit-learn 버전**은 AI 저장소 Release에 적힌 버전과 같게 맞춥니다
+- `/segments` 결과는 같은 형식의 JSON 파일로도 내보내서 FE의 비상용 데이터로 씁니다
+- 배포는 Render 무료 서버 (첫 요청이 느릴 수 있어 발표 캡처 전에 한 번 깨워 둡니다)
 
 ## 🚀 실행
 
