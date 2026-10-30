@@ -34,6 +34,22 @@ class ApiTests(unittest.TestCase):
                     for key, score in item["expected"]["scores"].items():
                         self.assertAlmostEqual(result["scores"][key], score, places=10)
 
+    def test_swagger_and_openapi_contract(self):
+        with TestClient(create_app(self.model_dir)) as client:
+            docs = client.get("/docs")
+            self.assertEqual(docs.status_code, 200)
+            self.assertIn("swagger-ui", docs.text)
+            self.assertEqual(client.get("/redoc").status_code, 200)
+            schema = client.get("/openapi.json").json()
+            self.assertIn("운전 시뮬레이터", schema["info"]["title"])
+            operation = schema["paths"]["/predict/glare"]["post"]
+            ref = operation["requestBody"]["content"]["multipart/form-data"]["schema"]["$ref"].split("/")[-1]
+            body = schema["components"]["schemas"][ref]
+            self.assertIn("image", body["required"])
+            self.assertEqual(body["properties"]["image"]["format"], "binary")
+            self.assertEqual(body["properties"]["source"]["enum"], ["camera", "game"])
+            self.assertEqual(operation["responses"]["503"]["content"]["application/json"]["example"]["error"], "MODEL_NOT_READY")
+
     def test_missing_and_corrupt_model(self):
         with tempfile.TemporaryDirectory() as folder:
             for corrupt in [False, True]:

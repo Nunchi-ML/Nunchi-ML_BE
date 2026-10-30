@@ -38,6 +38,8 @@ BE · PM
 
 오류는 `{"error":"CODE","message":"..."}`. 400 INVALID_IMAGE, 413 IMAGE_TOO_LARGE, 415 UNSUPPORTED_IMAGE_TYPE, 422 INVALID_REQUEST, 503 MODEL_NOT_READY, 500 INFERENCE_FAILED. OpenAPI는 `/docs`.
 
+**Swagger UI**: 로컬 `http://127.0.0.1:8765/docs`. `/health` 실행 → `model2=ready` 확인 → `/predict/glare`의 **Try it out** → JPEG 파일 선택 → source `camera` 또는 `game` → **Execute**. 입력 제약·응답 예시·오류별 예시를 함께 제공합니다. OpenAPI JSON은 `/openapi.json`, 읽기용 ReDoc은 `/redoc`이며 Render 배포 후에도 같은 경로를 씁니다.
+
 `/segments`, `/predict/risk`, `/models`는 현재 미구현입니다. 모델①은 고속도로 구간 건수 모델로 별도 검증하며 대구 실시간 사고 확률로 제공하지 않습니다.
 
 ## 📌 원칙
@@ -62,7 +64,7 @@ AI 저장소에서 먼저 export해야 합니다. 로컬 PowerShell에서 BE 폴
 ```powershell
 $env:MODEL_DIR = (Resolve-Path ../AI/models/model2-pilot-v1).Path
 $env:ALLOWED_ORIGINS = "http://localhost:5173,https://your-project.vercel.app"
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8765
 ```
 
 간단한 로컬 실행은 BE 폴더에서 `./scripts/dev.ps1`입니다. AI의 wheel을 직접 읽어 사용하므로 이 경우 전역 패키지 설치는 필요 없습니다(기본 Python 의존성은 필요). 기본 주소 `http://127.0.0.1:8765`, 허용 FE origin은 localhost:5173·127.0.0.1:5173입니다. 이 PC에서 8000·8001은 Windows가 바인딩을 거부해 8765를 사용합니다. `./scripts/dev.ps1 -Port 8000`처럼 포트를 바꿀 수 있습니다.
