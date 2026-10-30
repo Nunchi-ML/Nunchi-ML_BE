@@ -118,6 +118,8 @@ def create_app(model_dir=None, allowed_origins=None):
             app.state.predictor = await run_in_threadpool(GlarePredictor, directory)
         except Exception:
             logging.getLogger(__name__).warning("Model2 unavailable; check artifact and runtime versions")
+            if os.getenv("MODEL_REQUIRED", "").lower() == "true":
+                raise RuntimeError("Model2 must be ready before production startup") from None
         yield
         app.state.predictor = None
 

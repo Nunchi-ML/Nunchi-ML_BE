@@ -1,0 +1,77 @@
+name: Backend CI and Render CD
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: Model and API tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      MODEL_DIR: models/model2-pilot-v1
+      MODEL_BUNDLE_PATH: models/model2-pilot-v1.zip
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - name: Install dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Validate Render Blueprint
+        run: python scripts/check_blueprint.py
+      - name: Install pinned model bundle
+        run: python scripts/install_model.py --archive-out models/model2-pilot-v1.zip
+      - name: Verify actual model references
+        run: python scripts/verify_model.py
+      - name: Run model, API, Swagger and deployment tests
+        run: python -m unittest discover -s tests -v
+
+  deploy:
+    name: Deploy tested main commit
+    needs: ci
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    concurrency:
+      group: render-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Check this is still the latest main commit
+        id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          if [ "$latest" = "$GITHUB_SHA" ]; then
+            echo 'deploy=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'deploy=false' >> "$GITHUB_OUTPUT"
+            echo 'A newer main commit exists; skipping this stale deployment.'
+          fi
+      - name: Deploy exact commit and verify live model
+        if: steps.latest.outputs.deploy == 'true'
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+          FRONTEND_ORIGIN: ${{ vars.FRONTEND_ORIGIN }}
+        run: python -m scripts.deploy_render

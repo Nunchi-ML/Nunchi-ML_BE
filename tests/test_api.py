@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import cv2
 import numpy as np
@@ -60,6 +61,12 @@ class ApiTests(unittest.TestCase):
                     response = client.post("/predict/glare", files={"image": ("a.jpg", b"bad", "image/jpeg")})
                     self.assertEqual(response.status_code, 503)
                     self.assertEqual(response.json()["error"], "MODEL_NOT_READY")
+
+    def test_production_requires_model_before_startup(self):
+        with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {"MODEL_REQUIRED": "true"}):
+            with self.assertRaisesRegex(RuntimeError, "before production startup"):
+                with TestClient(create_app(folder)):
+                    pass
 
     def test_invalid_inputs_and_cors(self):
         origin = "https://nunchi-example.vercel.app"

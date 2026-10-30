@@ -16,6 +16,15 @@ MAX_BUNDLE = 16 * 1024 * 1024
 MAX_EXPANDED = 32 * 1024 * 1024
 
 
+def model_source(config_path, url=None, digest=None):
+    if bool(url) != bool(digest):
+        raise ValueError("Override URL and SHA-256 together")
+    if url:
+        return url, digest
+    config = json.loads(Path(config_path).read_text(encoding="utf-8"))
+    return config["url"], config["sha256"]
+
+
 def download(url):
     parsed = urlparse(url)
     if (parsed.scheme != "https" or parsed.netloc != "github.com"
@@ -79,13 +88,19 @@ def main():
     parser.add_argument("--bundle", type=Path, help="Local bundle instead of downloading")
     parser.add_argument("--url", default=os.getenv("MODEL_BUNDLE_URL"))
     parser.add_argument("--sha256", default=os.getenv("MODEL_BUNDLE_SHA256", ""))
+    parser.add_argument("--config", type=Path,
+                        default=Path(__file__).resolve().parents[1] / "deployment/model.json")
+    parser.add_argument("--archive-out", type=Path, help="Keep verified zip for CI restoration tests")
     parser.add_argument("--destination", type=Path,
                         default=os.getenv("MODEL_DIR", "models/model2-pilot-v1"))
     args = parser.parse_args()
-    if args.bundle is None and not args.url:
-        parser.error("Set MODEL_BUNDLE_URL and MODEL_BUNDLE_SHA256 before deploying")
+    if args.bundle is None:
+        args.url, args.sha256 = model_source(args.config, args.url, args.sha256)
     data = args.bundle.read_bytes() if args.bundle else download(args.url)
     wheel = unpack(data, args.sha256, args.destination)
+    if args.archive_out:
+        args.archive_out.parent.mkdir(parents=True, exist_ok=True)
+        args.archive_out.write_bytes(data)
     subprocess.run([sys.executable, "-m", "pip", "install", "--no-deps", "--force-reinstall", str(wheel)], check=True)
     print(json.dumps({"installed": str(args.destination), "bundle_sha256": args.sha256}))
 

@@ -71,11 +71,38 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8765
 
 Render 설정은 `render.yaml`을 사용합니다. 무료 단일 Python 서비스, 자동 배포 끔, build에서 의존성 설치 → 팀 bundle 다운로드/해시 검증 → wheel 설치 → 기준 사진 3장 검수 순서입니다. 시작 명령은 `uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1`.
 
-배포 전 필요한 값은 `MODEL_BUNDLE_URL`(팀 AI 저장소 Release의 태그가 고정된 zip URL), `MODEL_BUNDLE_SHA256`, 실제 Vercel 주소의 `ALLOWED_ORIGINS`입니다. `MODEL_DIR=models/model2-pilot-v1`. bundle은 AI README의 명령으로 생성합니다. 임의 다운로드 URL이나 사용자 업로드 모델은 사용하지 않습니다. 모델·원본 출처/이용 조건을 확인해 팀 Release로 전달한 뒤 Blueprint를 적용합니다. 현재 실제 Render 서비스 생성·클라우드 배포는 하지 않았습니다.
+모델은 `deployment/model.json`의 고정 Release URL·SHA-256을 CI와 Render가 함께 사용합니다. [모델② 시범 Release](https://github.com/Nunchi-ML/Nunchi-ML_AI/releases/tag/model2-pilot-v1). `MODEL_DIR=models/model2-pilot-v1`, 운영은 `MODEL_REQUIRED=true`이며 모델 로딩 실패 시 서버 시작을 중단합니다. URL·SHA 환경 변수는 둘을 함께 지정할 때만 선택적으로 덮어씁니다. `ALLOWED_ORIGINS`에는 실제 Vercel 주소를 지정합니다. 실제 Render 계정·서비스 연결은 별도 초기 설정이 필요합니다.
 
 공식 설정 참고: [Render Blueprint 명세](https://render.com/docs/blueprint-spec). Render CLI가 연결된 환경에서는 `render blueprints validate render.yaml`로 검증합니다. 환경 파일은 자동 로드하지 않으므로 환경 변수를 직접 지정합니다.
 
 검수: MODEL_DIR와 `MODEL_BUNDLE_PATH=../AI/models/model2-pilot-v1.zip` 설정 후 `python -m unittest discover -s tests -v` (테스트 도구 `httpx==0.28.1` 필요). `python scripts/verify_model.py`는 실제 JPEG 3장의 예측을 검수합니다. 원본·JPEG95 시범 점수와 fold·버전·해시는 meta.json에 있습니다. 2인 독립 라벨·실기기·국내 도로·시뮬레이터 화면 검증은 아직 남아 있습니다.
+
+## CI/CD
+
+`.github/workflows/ci-cd.yml`:
+
+- PR → Ubuntu/Python 3.13에서 의존성 설치, Render 스키마 검증, 고정 모델 bundle 설치·실제 JPEG 검수, 전체 단위·API·Swagger·배포 제어 테스트.
+- main push 또는 main 수동 실행 → CI 통과 후 해당 **commit SHA**를 Render API로 배포. 최신 main이 아니면 오래된 배포는 건너뜁니다.
+- Render의 해당 deploy가 `live`인지, 배포 commit이 같은지 확인 → 모델 ready·OpenAPI·Swagger·기준 사진 3장 실제 응답을 점검합니다. 이전 서버의 health 200만으로 성공 처리하지 않습니다.
+- Render 자동 배포는 **Off**로 유지합니다. GitHub Actions만 배포를 제어하며 배포 작업은 동시에 하나씩 실행합니다.
+- PR과 feature branch 수동 실행에서는 운영 배포·Render 시크릿 접근을 하지 않습니다.
+
+처음 한 번 설정:
+
+1. PR 검토 후 이성진이 main에 병합합니다. AI가 자동 병합하지 않습니다.
+2. Render에서 이 BE 저장소의 `render.yaml`을 Blueprint로 적용합니다. 무료 Python Web Service·Singapore·main·자동 배포 Off. ALLOWED_ORIGINS에 Vercel 주소를 입력합니다.
+3. GitHub BE 저장소 Actions secret **RENDER_API_KEY**, Actions variable **RENDER_SERVICE_ID**(`srv-...`)를 설정합니다. **FRONTEND_ORIGIN** variable을 지정하면 실제 CORS 응답까지 검사합니다.
+4. Actions의 Backend CI and Render CD → main → Run workflow로 첫 배포 파이프라인을 검수합니다. 이후 main push 때 자동 실행됩니다.
+
+값을 채팅이나 커밋에 넣을 필요 없이 GitHub 설정 화면 또는 다음 CLI로 등록합니다:
+
+```bash
+gh secret set RENDER_API_KEY --repo Nunchi-ML/Nunchi-ML_BE
+gh variable set RENDER_SERVICE_ID --repo Nunchi-ML/Nunchi-ML_BE --body srv-YOUR_SERVICE_ID
+gh variable set FRONTEND_ORIGIN --repo Nunchi-ML/Nunchi-ML_BE --body https://YOUR_PROJECT.vercel.app
+```
+
+새 모델은 새 Release 태그·bundle·SHA를 만들고 deployment/model.json을 PR로 변경합니다. CI에서 검증한 모델과 운영 모델이 같은 설정을 사용합니다. [Render API 배포 명세](https://api-docs.render.com/reference/create-deploy).
 
 
 <details>
