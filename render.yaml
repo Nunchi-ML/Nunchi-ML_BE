@@ -1,0 +1,28 @@
+# deployment/model.json pins the same bundle for CI and Render.
+services:
+  - type: web
+    name: nunchi-glare-api
+    runtime: python
+    plan: free
+    region: singapore
+    branch: main
+    autoDeployTrigger: 'off'
+    buildCommand: >-
+      pip install -r requirements.txt &&
+      python scripts/install_model.py &&
+      python scripts/verify_model.py
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.3
+      - key: MODEL_DIR
+        value: models/model2-pilot-v1
+      - key: MODEL_REQUIRED
+        value: 'true'
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: OMP_NUM_THREADS
+        value: '1'
+      - key: OPENBLAS_NUM_THREADS
+        value: '1'

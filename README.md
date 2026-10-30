@@ -25,29 +25,84 @@ BE · PM
 📂 models/    AI 저장소 Release에서 받은 파이프라인 파일   ← git에 올리지 않음
 ```
 
-## 🔗 API — 노션 「웹사이트 명세」가 정본
+## 🔗 API — 현재 구현
 
 | 메서드 | 경로 | 설명 |
 |---|---|---|
 | `GET` | `/health` | 서버 · 모델 로드 상태 |
-| `GET` | `/segments?road=달구벌대로` | 구간별 도로 정보 + 모델 ① 예측 사고 건수 (위험 지도 · 역 배너) |
-| `POST` | `/predict/risk` | 날짜 · 시간 · 구간 → 그 순간의 눈부심 위험도 |
-| `POST` | `/predict/glare` | 화면에서 뽑은 숫자 → 정상 / 눈부심 / 심한 눈부심 + 확률 (모델 ②) |
-| `GET` | `/models` | 모델 ① · ② 버전 · 검증 점수 · 중요 변수 (모델 결과 화면) |
+| `POST` | `/predict/glare` | multipart JPEG `image`, `source=camera\|game` → 3단계·모델 점수·밝은 곳 후보 |
+
+`/health`: `{"status":"ok","model2":"ready"}`. 모델 누락·해시·버전 불일치 시 `missing`, 추론은 503.
+
+추론 출력은 `model_version`, `status=pilot`, `level`, `label`, `scores={normal,glare,severe}`, `brightest={x,y}`. scores는 보정 전 모델 점수이며 사고 확률이 아닙니다. brightest는 전체 화면의 밝은 후보(0~1, 좌상단 원점)이며 차광 좌표가 아닙니다.
+
+오류는 `{"error":"CODE","message":"..."}`. 400 INVALID_IMAGE, 413 IMAGE_TOO_LARGE, 415 UNSUPPORTED_IMAGE_TYPE, 422 INVALID_REQUEST, 503 MODEL_NOT_READY, 500 INFERENCE_FAILED. OpenAPI는 `/docs`.
+
+**Swagger UI**: 로컬 `http://127.0.0.1:8765/docs`. `/health` 실행 → `model2=ready` 확인 → `/predict/glare`의 **Try it out** → JPEG 파일 선택 → source `camera` 또는 `game` → **Execute**. 입력 제약·응답 예시·오류별 예시를 함께 제공합니다. OpenAPI JSON은 `/openapi.json`, 읽기용 ReDoc은 `/redoc`이며 Render 배포 후에도 같은 경로를 씁니다.
+
+`/segments`, `/predict/risk`, `/models`는 현재 미구현입니다. 모델①은 고속도로 구간 건수 모델로 별도 검증하며 대구 실시간 사고 확률로 제공하지 않습니다.
 
 ## 📌 원칙
 
-- 처음엔 같은 형식을 돌려주는 **가짜 모델**로 만들고, AI 저장소 Release의 파이프라인 파일로 교체합니다
-- 서비스 쪽에서 **전처리를 다시 짜지 않습니다** (전처리는 파이프라인 파일 안에 있습니다)
-- **scikit-learn 버전**은 AI 저장소 Release에 적힌 버전과 같게 맞춥니다
-- `/segments` 결과는 같은 형식의 JSON 파일로도 내보내서 FE의 비상용 데이터로 씁니다
-- 배포는 Render 무료 서버 (첫 요청이 느릴 수 있어 발표 캡처 전에 한 번 깨워 둡니다)
+- AI export의 모델·meta.json과 `nunchi-glare` wheel을 함께 사용합니다. 전처리 코드는 이 패키지만 쓰며 BE/JS에 복제하지 않습니다.
+- 전체 BGR 화면 → 640×368 INTER_LINEAR resize → 특징 12개 → LightGBM. 중앙 자르기·letterbox·미러링 없음.
+- FE는 전체 프레임 비율 유지, 긴 변 최대 1280(확대 없음), JPEG quality 0.95, 1MiB 이하로 보냅니다. 초과 프레임은 건너뜁니다. 브라우저 인코더와 실기기 성능은 별도 확인합니다.
+- 이미지 파일 1MiB, multipart 본문 1MiB+64KiB, 펼친 이미지 800만 픽셀 상한. 사진·위치 저장 및 로깅 없음.
+- **FE Vercel + BE Render**. 신천대로·달구벌대로 모두 MVP 필수이며 모든 태양 조건을 지원합니다. BE는 도로·태양 조건으로 이미지 분류 요청을 제한하지 않습니다.
+- `ALLOWED_ORIGINS`에 실제 Vercel 주소를 명시합니다. preview 도메인은 필요한 것만 추가합니다. FE API 주소는 `VITE_API_BASE_URL`.
+- 모델 누락 시 가짜 판정 대신 503입니다. 기준 사진은 원래 라벨과 모델 예상 판정을 구분합니다.
 
 ## 🚀 실행
 
 ```bash
 pip install -r requirements.txt
+pip install --no-deps ../AI/models/model2-pilot-v1/nunchi_glare-0.1.0-py3-none-any.whl
 ```
+
+AI 저장소에서 먼저 export해야 합니다. 로컬 PowerShell에서 BE 폴더 기준:
+
+```powershell
+$env:MODEL_DIR = (Resolve-Path ../AI/models/model2-pilot-v1).Path
+$env:ALLOWED_ORIGINS = "http://localhost:5173,https://your-project.vercel.app"
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8765
+```
+
+간단한 로컬 실행은 BE 폴더에서 `./scripts/dev.ps1`입니다. AI의 wheel을 직접 읽어 사용하므로 이 경우 전역 패키지 설치는 필요 없습니다(기본 Python 의존성은 필요). 기본 주소 `http://127.0.0.1:8765`, 허용 FE origin은 localhost:5173·127.0.0.1:5173입니다. 이 PC에서 8000·8001은 Windows가 바인딩을 거부해 8765를 사용합니다. `./scripts/dev.ps1 -Port 8000`처럼 포트를 바꿀 수 있습니다.
+
+Render 설정은 `render.yaml`을 사용합니다. 무료 단일 Python 서비스, 자동 배포 끔, build에서 의존성 설치 → 팀 bundle 다운로드/해시 검증 → wheel 설치 → 기준 사진 3장 검수 순서입니다. 시작 명령은 `uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1`.
+
+모델은 `deployment/model.json`의 고정 Release URL·SHA-256을 CI와 Render가 함께 사용합니다. [모델② 시범 Release](https://github.com/Nunchi-ML/Nunchi-ML_AI/releases/tag/model2-pilot-v1). `MODEL_DIR=models/model2-pilot-v1`, 운영은 `MODEL_REQUIRED=true`이며 모델 로딩 실패 시 서버 시작을 중단합니다. URL·SHA 환경 변수는 둘을 함께 지정할 때만 선택적으로 덮어씁니다. `ALLOWED_ORIGINS`에는 실제 Vercel 주소를 지정합니다. 실제 Render 계정·서비스 연결은 별도 초기 설정이 필요합니다.
+
+공식 설정 참고: [Render Blueprint 명세](https://render.com/docs/blueprint-spec). Render CLI가 연결된 환경에서는 `render blueprints validate render.yaml`로 검증합니다. 환경 파일은 자동 로드하지 않으므로 환경 변수를 직접 지정합니다.
+
+검수: MODEL_DIR와 `MODEL_BUNDLE_PATH=../AI/models/model2-pilot-v1.zip` 설정 후 `python -m unittest discover -s tests -v` (테스트 도구 `httpx==0.28.1` 필요). `python scripts/verify_model.py`는 실제 JPEG 3장의 예측을 검수합니다. 원본·JPEG95 시범 점수와 fold·버전·해시는 meta.json에 있습니다. 2인 독립 라벨·실기기·국내 도로·시뮬레이터 화면 검증은 아직 남아 있습니다.
+
+## CI/CD
+
+`.github/workflows/ci-cd.yml`:
+
+- PR → Ubuntu/Python 3.13에서 의존성 설치, Render 스키마 검증, 고정 모델 bundle 설치·실제 JPEG 검수, 전체 단위·API·Swagger·배포 제어 테스트.
+- main push 또는 main 수동 실행 → CI 통과 후 해당 **commit SHA**를 Render API로 배포. 최신 main이 아니면 오래된 배포는 건너뜁니다.
+- Render의 해당 deploy가 `live`인지, 배포 commit이 같은지 확인 → 모델 ready·OpenAPI·Swagger·기준 사진 3장 실제 응답을 점검합니다. 이전 서버의 health 200만으로 성공 처리하지 않습니다.
+- Render 자동 배포는 **Off**로 유지합니다. GitHub Actions만 배포를 제어하며 배포 작업은 동시에 하나씩 실행합니다.
+- PR과 feature branch 수동 실행에서는 운영 배포·Render 시크릿 접근을 하지 않습니다.
+
+처음 한 번 설정:
+
+1. PR 검토 후 이성진이 main에 병합합니다. AI가 자동 병합하지 않습니다.
+2. Render에서 이 BE 저장소의 `render.yaml`을 Blueprint로 적용합니다. 무료 Python Web Service·Singapore·main·자동 배포 Off. ALLOWED_ORIGINS에 Vercel 주소를 입력합니다.
+3. GitHub BE 저장소 Actions secret **RENDER_API_KEY**, Actions variable **RENDER_SERVICE_ID**(`srv-...`)를 설정합니다. **FRONTEND_ORIGIN** variable을 지정하면 실제 CORS 응답까지 검사합니다.
+4. Actions의 Backend CI and Render CD → main → Run workflow로 첫 배포 파이프라인을 검수합니다. 이후 main push 때 자동 실행됩니다.
+
+값을 채팅이나 커밋에 넣을 필요 없이 GitHub 설정 화면 또는 다음 CLI로 등록합니다:
+
+```bash
+gh secret set RENDER_API_KEY --repo Nunchi-ML/Nunchi-ML_BE
+gh variable set RENDER_SERVICE_ID --repo Nunchi-ML/Nunchi-ML_BE --body srv-YOUR_SERVICE_ID
+gh variable set FRONTEND_ORIGIN --repo Nunchi-ML/Nunchi-ML_BE --body https://YOUR_PROJECT.vercel.app
+```
+
+새 모델은 새 Release 태그·bundle·SHA를 만들고 deployment/model.json을 PR로 변경합니다. CI에서 검증한 모델과 운영 모델이 같은 설정을 사용합니다. [Render API 배포 명세](https://api-docs.render.com/reference/create-deploy).
 
 
 <details>
