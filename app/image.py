@@ -1,4 +1,4 @@
-"""JPEG 헤더/해상도를 먼저 확인하고 AI 공통 패키지로 추론한다."""
+"""받은 사진 검사: JPEG 헤더 · 크기 · 해상도를 먼저 확인하고 OpenCV 이미지로 바꾼다."""
 from io import BytesIO
 import warnings
 
