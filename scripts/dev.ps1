@@ -3,8 +3,8 @@ $ErrorActionPreference = 'Stop'
 $beRoot = Split-Path -Parent $PSScriptRoot
 $exportRoot = Join-Path (Split-Path -Parent $beRoot) 'AI/models/model2-pilot-v1'
 $modelPath = (Resolve-Path -LiteralPath $exportRoot).Path
-$wheelFiles = @(Get-ChildItem -LiteralPath $modelPath -Filter 'nunchi_glare-*-py3-none-any.whl')
-if ($wheelFiles.Count -ne 1) { throw 'Build exactly one AI nunchi-glare wheel before starting BE.' }
+$wheelFiles = @(Get-ChildItem -LiteralPath $modelPath -Filter 'nunchi_*-py3-none-any.whl')
+if ($wheelFiles.Count -ne 1) { throw 'Build exactly one AI nunchi-ml (or old nunchi-glare) wheel before starting BE.' }
 $previousModel = $env:MODEL_DIR
 $previousPythonPath = $env:PYTHONPATH
 $previousOrigins = $env:ALLOWED_ORIGINS

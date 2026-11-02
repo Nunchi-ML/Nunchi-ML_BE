@@ -61,7 +61,7 @@ def unpack(data, expected_sha256, destination):
             raise ValueError("Unsupported model bundle format")
         files, wheel = manifest["files"], manifest["wheel"]
         required = {"model2.joblib", "meta.json", "reference/expected.json", wheel}
-        if (not re.fullmatch(r"nunchi_glare-[\w.]+-py3-none-any\.whl", wheel)
+        if (not re.fullmatch(r"(nunchi_ml|nunchi_glare)-[\w.]+-py3-none-any\.whl", wheel)
                 or not required.issubset(files)
                 or set(names) != set(files) | {"manifest.json"}
                 or any(name not in required and not re.fullmatch(r"reference/class-[012]\.jpg", name)

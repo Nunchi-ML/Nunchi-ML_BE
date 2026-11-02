@@ -18,12 +18,32 @@
 
 BE · PM
 
-## 📁 폴더
+## 📁 폴더 — 어디에 뭘 두나
 
 ```
-📂 app/       API 코드
-📂 models/    AI 저장소 Release에서 받은 파이프라인 파일   ← git에 올리지 않음
+📂 app/                    API 코드
+ ├─ main.py                앱 설정만 (문서 · CORS · 오류 · 모델 불러오기 · 라우터 연결)
+ ├─ 📂 routers/            주소별 처리 — 모델마다 파일 하나
+ │   ├─ health.py          GET  /health
+ │   └─ glare.py           POST /predict/glare  (모델 ②)  ← 모델 ①은 risk.py, 구간 목록은 segments.py 로 추가
+ ├─ predictor.py           AI 공통 패키지(nunchi_ml)에서 모델 추론기 불러오기
+ ├─ image.py               받은 사진 검사 (JPEG · 1MB · 800만 픽셀)
+ ├─ errors.py              오류 코드 · 한국어 안내 · Swagger 예시
+ └─ middleware.py          요청 크기 제한
+📂 scripts/                모델 받기 · 검수 · 배포 도구 (install_model · verify_model · deploy_render · dev.ps1)
+📂 tests/                  API · 모델 묶음 · 배포 테스트 — PR마다 자동으로 돌아감
+📂 deployment/model.json   서버에 올릴 모델 버전 · 주소 · 지문(sha256) — 모델 바꿀 땐 이 파일만 PR로 바꿈
+📂 models/                 AI Release에서 받은 모델 파일     ← git에 안 올림
 ```
+
+### 새 API를 붙일 때
+
+1. `app/routers/<이름>.py` 에 `router = APIRouter(...)` 와 주소 함수 작성 (예시는 `glare.py`)
+2. `app/main.py` 에서 `app.include_router(<이름>.router)` 한 줄 추가
+3. `tests/` 에 테스트 추가 → PR
+
+- 모델 계산 코드는 여기 복제하지 않고 AI 저장소 `src/nunchi_ml/` 에 두고 가져다 써요 (학습 · 서버가 같은 코드)
+- 원본 데이터 · 모델 파일은 git에 안 올려요 — 모델은 AI 저장소 GitHub Release로 받아요
 
 ## 🔗 API — 현재 구현
 
@@ -44,7 +64,7 @@ BE · PM
 
 ## 📌 원칙
 
-- AI export의 모델·meta.json과 `nunchi-glare` wheel을 함께 사용합니다. 전처리 코드는 이 패키지만 쓰며 BE/JS에 복제하지 않습니다.
+- AI export의 모델·meta.json과 공통 코드 wheel(`nunchi-ml`, 첫 묶음 `model2-pilot-v1`은 옛 이름 `nunchi-glare`)을 함께 사용합니다. 전처리 코드는 이 패키지만 쓰며 BE/JS에 복제하지 않습니다. `app/predictor.py`가 두 이름을 모두 받습니다.
 - 전체 BGR 화면 → 640×368 INTER_LINEAR resize → 특징 12개 → LightGBM. 중앙 자르기·letterbox·미러링 없음.
 - FE는 전체 프레임 비율 유지, 긴 변 최대 1280(확대 없음), JPEG quality 0.95, 1MiB 이하로 보냅니다. 초과 프레임은 건너뜁니다. 브라우저 인코더와 실기기 성능은 별도 확인합니다.
 - 이미지 파일 1MiB, multipart 본문 1MiB+64KiB, 펼친 이미지 800만 픽셀 상한. 사진·위치 저장 및 로깅 없음.
@@ -56,7 +76,7 @@ BE · PM
 
 ```bash
 pip install -r requirements.txt
-pip install --no-deps ../AI/models/model2-pilot-v1/nunchi_glare-0.1.0-py3-none-any.whl
+python scripts/install_model.py   # deployment/model.json 의 Release 묶음을 받아 확인하고 공통 코드 wheel까지 설치
 ```
 
 AI 저장소에서 먼저 export해야 합니다. 로컬 PowerShell에서 BE 폴더 기준:

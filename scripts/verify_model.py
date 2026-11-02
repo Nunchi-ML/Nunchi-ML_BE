@@ -6,7 +6,10 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-from nunchi_glare.inference import GlarePredictor, sha256
+try:  # AI 공통 패키지: 새 이름 nunchi_ml, 첫 묶음(model2-pilot-v1)은 옛 이름 nunchi_glare
+    from nunchi_ml.glare.inference import GlarePredictor, sha256
+except ModuleNotFoundError:
+    from nunchi_glare.inference import GlarePredictor, sha256
 
 
 def verify(directory):

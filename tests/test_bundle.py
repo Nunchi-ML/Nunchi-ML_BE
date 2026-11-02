@@ -9,7 +9,7 @@ import unittest
 import zipfile
 
 from scripts.install_model import download, unpack
-from nunchi_glare.inference import GlarePredictor
+from app.predictor import GlarePredictor
 
 
 def archive(files):
