@@ -1,3 +1,2 @@
 -r requirements.txt
-# Separate local prototype only; production keeps requirements.txt and the pilot bundle.
-pvlib==0.16.1
+# 로컬 시제품용. pvlib는 운영 requirements.txt에도 들어 있다(선정 모델 주소 /predict/glare/photo-g).

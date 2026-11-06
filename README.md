@@ -23,7 +23,8 @@
 | API | 쓰는 모델 | 상태 |
 |---|---|---|
 | `POST /predict/glare` | 사진만 보는 이전 시범 모델 | 운영 (Render) · 시뮬레이터 카메라 앱이 사용 |
-| `POST /predict/glare/prototype` | 발표 선정 모델 (사진 + 해 위치·날씨) | 로컬 시제품 · 운영 연결 전 |
+| `POST /predict/glare/photo-g` | 발표 선정 모델 (사진 + 해 위치·날씨) | **운영 (Render)** · 모델 묶음은 AI Release `model2-photo-g-prototype-v1` |
+| `POST /predict/glare/prototype` | 같은 모델의 로컬 시제품 앱 | 로컬 검토용 |
 | 통합 주행 안내 · 밝기 전환 부담 | — | 미구현 |
 
 ## 📁 폴더 — 어디에 뭘 두나

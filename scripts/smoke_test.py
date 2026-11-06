@@ -17,10 +17,10 @@ def smoke(base_url, directory, origin=None):
     if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.query or parsed.fragment:
         raise ValueError("Expected an HTTPS API base URL")
     raw, _ = request(base_url, "/health")
-    if json.loads(raw) != {"status": "ok", "model2": "ready"}:
+    if json.loads(raw) != {"status": "ok", "model2": "ready", "model2_photo_g": "ready"}:
         raise RuntimeError("Deployed model is not ready")
     schema, _ = request(base_url, "/openapi.json")
-    if not {"/health", "/predict/glare"}.issubset(json.loads(schema)["paths"]):
+    if not {"/health", "/predict/glare", "/predict/glare/photo-g"}.issubset(json.loads(schema)["paths"]):
         raise RuntimeError("Missing deployed API paths")
     docs, _ = request(base_url, "/docs")
     if b"SwaggerUIBundle" not in docs:

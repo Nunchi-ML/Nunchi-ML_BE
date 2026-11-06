@@ -2,6 +2,8 @@
 from .errors import error
 from .image import MAX_IMAGE_BYTES
 
+LIMITED_PATHS = {"/predict/glare", "/predict/glare/photo-g"}
+
 
 class BodyLimitMiddleware:
     """Content-Length가 없거나 틀려도 multipart 파싱 전에 실제 수신량을 제한."""
@@ -9,7 +11,7 @@ class BodyLimitMiddleware:
         self.app = app
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http" or scope["method"] != "POST" or scope["path"] != "/predict/glare":
+        if scope["type"] != "http" or scope["method"] != "POST" or scope["path"] not in LIMITED_PATHS:
             return await self.app(scope, receive, send)
         chunks, size = [], 0
         while True:

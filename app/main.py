@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 import logging
 import os
 from pathlib import Path
+import sys
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,13 +15,27 @@ from starlette.concurrency import run_in_threadpool
 from .errors import add_error_handlers
 from .middleware import BodyLimitMiddleware
 from .predictor import GlarePredictor
-from .routers import glare, health
+from .routers import glare, health, photo_g
 
 __all__ = ["BodyLimitMiddleware", "app", "create_app"]
 
 
-def create_app(model_dir=None, allowed_origins=None):
+def load_photo_g(model_dir, runtime_dir):
+    """선정 모델 묶음을 불러온다. 시범 모델이 먼저 import된 뒤 런타임 폴더만 경로에 추가한다."""
+    model_dir, runtime_dir = Path(model_dir), Path(runtime_dir)
+    if not (model_dir / "parameters.json").is_file() or not (runtime_dir / "nunchi_ml").is_dir():
+        raise FileNotFoundError("Photo-g bundle or runtime missing")
+    runtime = str(runtime_dir.resolve())
+    if runtime not in sys.path:
+        sys.path.insert(0, runtime)
+    from .prototype import PhotoGPredictor
+    return PhotoGPredictor(model_dir)
+
+
+def create_app(model_dir=None, allowed_origins=None, photo_g_dir=None, photo_g_runtime=None):
     directory = Path(model_dir or os.getenv("MODEL_DIR", "models/model2-pilot-v1"))
+    photo_g_directory = photo_g_dir or os.getenv("PHOTO_G_MODEL_DIR", "models/model2-photo-g-prototype-v1")
+    photo_g_runtime_dir = photo_g_runtime or os.getenv("PHOTO_G_RUNTIME_DIR", "models/photo-g-runtime")
 
     @asynccontextmanager
     async def lifespan(app):
@@ -31,8 +46,16 @@ def create_app(model_dir=None, allowed_origins=None):
             logging.getLogger(__name__).warning("Model2 unavailable; check artifact and runtime versions")
             if os.getenv("MODEL_REQUIRED", "").lower() == "true":
                 raise RuntimeError("Model2 must be ready before production startup") from None
+        app.state.photo_g = None
+        try:
+            app.state.photo_g = await run_in_threadpool(load_photo_g, photo_g_directory, photo_g_runtime_dir)
+        except Exception:
+            logging.getLogger(__name__).warning("Photo-g model unavailable; /predict/glare/photo-g returns 503")
+            if os.getenv("PHOTO_G_REQUIRED", "").lower() == "true":
+                raise RuntimeError("Photo-g model must be ready before production startup") from None
         yield
         app.state.predictor = None
+        app.state.photo_g = None
 
     app = FastAPI(
         title="눈치 드라이브 · 운전 시뮬레이터 API", version="0.1.0", lifespan=lifespan,
@@ -52,7 +75,9 @@ def create_app(model_dir=None, allowed_origins=None):
         docs_url="/docs", redoc_url="/redoc", openapi_url="/openapi.json",
         swagger_ui_parameters={"displayRequestDuration": True, "defaultModelsExpandDepth": 1},
         openapi_tags=[{"name": "서버 상태", "description": "서버 및 모델 준비 상태"},
-                      {"name": "모델② · 시범", "description": "사진 한 장의 시인성 저하 분류"}],
+                      {"name": "모델② · 시범", "description": "사진 한 장의 시인성 저하 분류"},
+                      {"name": "태양광 눈부심 분류 · 선정 모델",
+                       "description": "사진 + 촬영 시각·위치·방향·날씨로 판정하는 발표 선정 모델"}],
     )
     app.add_middleware(BodyLimitMiddleware)
     origins = allowed_origins if allowed_origins is not None else [
@@ -63,6 +88,7 @@ def create_app(model_dir=None, allowed_origins=None):
     add_error_handlers(app)
     app.include_router(health.router)
     app.include_router(glare.router)
+    app.include_router(photo_g.router)
     return app
 
 
