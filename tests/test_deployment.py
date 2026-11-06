@@ -49,8 +49,9 @@ class DeploymentTests(unittest.TestCase):
     def test_smoke_checks_all_reference_responses(self):
         directory = Path(os.environ["MODEL_DIR"])
         expected = json.loads((directory / "reference/expected.json").read_text(encoding="utf-8"))
-        replies = [(json.dumps({"status": "ok", "model2": "ready"}).encode(), {}),
-                   (json.dumps({"paths": {"/health": {}, "/predict/glare": {}}}).encode(), {}),
+        replies = [(json.dumps({"status": "ok", "model2": "ready", "model2_photo_g": "ready"}).encode(), {}),
+                   (json.dumps({"paths": {"/health": {}, "/predict/glare": {},
+                                          "/predict/glare/photo-g": {}}}).encode(), {}),
                    (b"SwaggerUIBundle", {})]
         replies += [(json.dumps(item["expected"]).encode(), {}) for item in expected]
         with patch("scripts.smoke_test.request", side_effect=replies) as call:

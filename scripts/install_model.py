@@ -103,6 +103,13 @@ def main():
         args.archive_out.write_bytes(data)
     subprocess.run([sys.executable, "-m", "pip", "install", "--no-deps", "--force-reinstall", str(wheel)], check=True)
     print(json.dumps({"installed": str(args.destination), "bundle_sha256": args.sha256}))
+    # 같은 빌드 명령으로 발표 선정 모델 묶음도 받는다 (Render 빌드 명령을 바꾸지 않기 위해).
+    if args.bundle is None and os.getenv("PHOTO_G_SKIP", "").lower() != "true":
+        try:
+            from scripts.install_photo_g import install as install_photo_g
+        except ImportError:
+            from install_photo_g import install as install_photo_g
+        print(json.dumps(install_photo_g()))
 
 
 if __name__ == "__main__":

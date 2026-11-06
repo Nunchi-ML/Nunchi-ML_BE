@@ -22,7 +22,8 @@ class ApiTests(unittest.TestCase):
 
     def test_reference_predictions(self):
         with TestClient(create_app(self.model_dir)) as client:
-            self.assertEqual(client.get("/health").json(), {"status": "ok", "model2": "ready"})
+            health = client.get("/health").json()
+            self.assertEqual({k: health[k] for k in ("status", "model2")}, {"status": "ok", "model2": "ready"})
             for item in self.reference:
                 data = (self.model_dir / "reference" / item["file"]).read_bytes()
                 for source in ["camera", "game"]:
