@@ -4,7 +4,7 @@
 
 # Nunchi-ML_BE
 
-눈부심 예측 API — 시뮬레이터에 모델 ① · ② 예측을 줘요
+눈부심 판정 API — 운전 시뮬레이터에 태양광 눈부심 분류 결과를 줘요
 
 ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white) ![scikit--learn](https://img.shields.io/badge/scikit--learn-F7931E?style=flat-square&logo=scikitlearn&logoColor=white) ![LightGBM](https://img.shields.io/badge/LightGBM-2E7D32?style=flat-square) ![Render](https://img.shields.io/badge/Render-46E3B7?style=flat-square&logo=render&logoColor=black)
 
@@ -16,7 +16,15 @@
 
 ## 👥 담당
 
-BE · PM
+이성진
+
+## 🧭 한눈에 보기
+
+| API | 쓰는 모델 | 상태 |
+|---|---|---|
+| `POST /predict/glare` | 사진만 보는 이전 시범 모델 | 운영 (Render) · 시뮬레이터 카메라 앱이 사용 |
+| `POST /predict/glare/prototype` | 발표 선정 모델 (사진 + 해 위치·날씨) | 로컬 시제품 · 운영 연결 전 |
+| 통합 주행 안내 · 밝기 전환 부담 | — | 미구현 |
 
 ## 📁 폴더 — 어디에 뭘 두나
 
