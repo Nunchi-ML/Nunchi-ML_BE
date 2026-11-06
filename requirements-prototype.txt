@@ -1,0 +1,3 @@
+-r requirements.txt
+# Separate local prototype only; production keeps requirements.txt and the pilot bundle.
+pvlib==0.16.1
