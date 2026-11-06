@@ -62,6 +62,27 @@ BE · PM
 
 `/segments`, `/predict/risk`, `/models`는 현재 미구현입니다. 모델①은 고속도로 구간 건수 모델로 별도 검증하며 대구 실시간 사고 확률로 제공하지 않습니다.
 
+## 사진+G 로컬 시제품 — 승인된 별도 API
+
+`app.prototype`는 사용자가 발표용으로 선택한 `B_geometry_aug`를 실제 JPEG와 촬영 정보로 실행하는 별도 앱입니다. 2026-11-06 사용자가 아래 사진+G API 계약과 BE·FE 코드의 푸시/PR 생성을 승인했습니다. 운영 `app.main`에는 연결하지 않았으며 운영 적용·배포는 별도 검증 대상입니다.
+
+- `POST /predict/glare/prototype`: multipart `image`(JPEG 원본, 1MiB·800만 픽셀 이하), `context`(8KiB 이하 JSON). 사진을 축소하거나 G 값을 가정해서 보내지 않습니다.
+- context 필수: `lat`, `lon`, `heading`(북=0, 시계 방향, 360 미만), `focal`(긴 변 기준 정규화 초점거리), `width`, `height`, `captured_at`(시간대 포함), `cloud`(0~10), `sunshine`(0~1), `weather_observed_at`, `weather_source`, `geometry_source`, `projection="legacy_level_assumed"`. 선택 `weather_available_at`. 원본 크기와 촬영 전 1시간 이내 기상 관측을 검사하며, 누락·오래된 기상·촬영 이후 공개 정보를 정상으로 채우지 않습니다.
+- 응답: `status="prototype"`, `variant="B_geometry_aug"`, `model_version="photo-g-candidate-v1"`, 등급/점수, 두 단계 A/B 점수, 사진 SHA-256, 촬영시각·기상 관측 나이·공개시각 확인 여부. 카메라 자세/도로변/미래 경로 검증은 모두 `false`입니다. `.5/.5` 조건부 판정이므로 joint 점수 argmax와 다를 수 있습니다.
+- 오류: 기존 이미지 오류에 더해 context 구조/누락 422 `INVALID_REQUEST`, 사진 크기·관측시각 불일치 400 `INVALID_CONTEXT`. 모델 누락은 503, 분석·응답 검증 실패는 500입니다. 요청 사진/촬영 정보는 저장하지 않습니다.
+- `processing_ms`는 G·모델 계산 시간이며 JPEG 디코딩·업로드/네트워크·화면 표시 시간은 제외합니다. FE의 요청 시간은 사진 지문 확인부터 응답 검증까지입니다. 촬영→운전자 알림 지연으로 해석하지 않습니다.
+
+BE 폴더 기준으로 로컬에서만 실행합니다. 모델 묶음·원본 사진·실제 촬영 정보는 공개 저장소에 넣지 않습니다.
+
+```powershell
+python -m pip install -r requirements-prototype.txt
+./scripts/prototype.ps1 -Bundle '../AI/data/prototype_reference_20261106'
+```
+
+실행기는 묶음의 wheel/meta/parameters 체크섬을 확인하고 wheel을 임시 폴더에 풀어 공통 AI 코드를 불러옵니다. 기존 시범 패키지를 덮어쓰지 않습니다. API 주소는 `http://127.0.0.1:8766`, 문서는 `/docs`이며 로컬 FE origin 5173만 기본 허용합니다. 다른 origin은 `PROTOTYPE_ALLOWED_ORIGINS`로 명시합니다. 별도 FE의 `/photo-g/` 화면에서 사진과 해당 촬영 정보 JSON을 선택해 분석합니다.
+
+테스트: `python -m unittest discover -s tests -p test_prototype.py -v`. 실제 모델 대조는 `HYBRID_TEST_BUNDLE`, `HYBRID_TEST_IMAGE`, `HYBRID_TEST_CONTEXT`를 비공개 자료 경로로 설정한 경우 실행합니다. CI의 합성 HTTP 경계 테스트와 실제 모델의 정확도 평가는 구분합니다. 도시 CCTV 연결과 미래 경로·운전자 실제 시야/사고 효과 검증은 확장 과제입니다.
+
 ## 📌 원칙
 
 - AI export의 모델·meta.json과 공통 코드 wheel(`nunchi-ml`, 첫 묶음 `model2-pilot-v1`은 옛 이름 `nunchi-glare`)을 함께 사용합니다. 전처리 코드는 이 패키지만 쓰며 BE/JS에 복제하지 않습니다. `app/predictor.py`가 두 이름을 모두 받습니다.
