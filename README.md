@@ -61,6 +61,13 @@
 | `GET` | `/health` | 서버 · 모델 로드 상태 |
 | `POST` | `/predict/glare` | multipart JPEG `image`, `source=camera\|game` → 3단계·모델 점수·밝은 곳 후보 |
 
+- 운영 주소: https://nunchi-glare-api.onrender.com/docs (Swagger)
+
+<details>
+<summary><b>📄 응답 · 오류 형식</b> (펼치기)</summary>
+
+<br/>
+
 `/health`: `{"status":"ok","model2":"ready"}`. 모델 누락·해시·버전 불일치 시 `missing`, 추론은 503.
 
 추론 출력은 `model_version`, `status=pilot`, `level`, `label`, `scores={normal,glare,severe}`, `brightest={x,y}`. scores는 보정 전 모델 점수이며 사고 확률이 아닙니다. brightest는 전체 화면의 밝은 후보(0~1, 좌상단 원점)이며 차광 좌표가 아닙니다.
@@ -69,6 +76,7 @@
 
 **Swagger UI**: 로컬 `http://127.0.0.1:8765/docs`. `/health` 실행 → `model2=ready` 확인 → `/predict/glare`의 **Try it out** → JPEG 파일 선택 → source `camera` 또는 `game` → **Execute**. 입력 제약·응답 예시·오류별 예시를 함께 제공합니다. OpenAPI JSON은 `/openapi.json`, 읽기용 ReDoc은 `/redoc`이며 Render 배포 후에도 같은 경로를 씁니다.
 
+</details>
 
 <details>
 <summary><b>🧪 사진 + 해 위치 로컬 시제품 API</b> (펼치기)</summary>
@@ -96,7 +104,10 @@ python -m pip install -r requirements-prototype.txt
 
 </details>
 
-## 📌 원칙
+<details>
+<summary><b>📌 구현 원칙</b> (펼치기)</summary>
+
+<br/>
 
 - AI export의 모델·meta.json과 공통 코드 wheel(`nunchi-ml`, 첫 묶음 `model2-pilot-v1`은 옛 이름 `nunchi-glare`)을 함께 사용합니다. 전처리 코드는 이 패키지만 쓰며 BE/JS에 복제하지 않습니다. `app/predictor.py`가 두 이름을 모두 받습니다.
 - 전체 BGR 화면 → 640×368 INTER_LINEAR resize → 특징 12개 → LightGBM. 중앙 자르기·letterbox·미러링 없음.
@@ -105,6 +116,8 @@ python -m pip install -r requirements-prototype.txt
 - **FE Vercel + BE Render**. 신천대로·달구벌대로 모두 MVP 필수이며 모든 태양 조건을 지원합니다. BE는 도로·태양 조건으로 이미지 분류 요청을 제한하지 않습니다.
 - `ALLOWED_ORIGINS`에 실제 Vercel 주소를 명시합니다. preview 도메인은 필요한 것만 추가합니다. FE API 주소는 `VITE_API_BASE_URL`.
 - 모델 누락 시 가짜 판정 대신 503입니다. 기준 사진은 원래 라벨과 모델 예상 판정을 구분합니다.
+
+</details>
 
 ## 🚀 실행
 
