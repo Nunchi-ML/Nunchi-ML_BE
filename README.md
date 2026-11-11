@@ -25,7 +25,7 @@
 | `POST /predict/glare` | 사진만 보는 이전 시범 모델 | 운영 (Render) · 시뮬레이터 카메라 앱이 사용 |
 | `POST /predict/glare/photo-g` | 발표 선정 모델 (사진 + 해 위치·날씨) | **운영 (Render)** · 모델 묶음은 AI Release `model2-photo-g-prototype-v1` |
 | `POST /predict/glare/prototype` | 같은 모델의 로컬 시제품 앱 | 로컬 검토용 |
-| 통합 주행 안내 · 밝기 전환 부담 | — | 미구현 |
+| 터널 암순응 분류 | — | 서버 API 없음 · 로컬에서 판정하고 웹은 미리 판정한 결과 사용 |
 
 ## 📁 폴더 — 어디에 뭘 두나
 
@@ -69,11 +69,13 @@
 
 **Swagger UI**: 로컬 `http://127.0.0.1:8765/docs`. `/health` 실행 → `model2=ready` 확인 → `/predict/glare`의 **Try it out** → JPEG 파일 선택 → source `camera` 또는 `game` → **Execute**. 입력 제약·응답 예시·오류별 예시를 함께 제공합니다. OpenAPI JSON은 `/openapi.json`, 읽기용 ReDoc은 `/redoc`이며 Render 배포 후에도 같은 경로를 씁니다.
 
-`/segments`, `/predict/risk`, `/models`는 현재 미구현입니다. 모델①은 고속도로 구간 건수 모델로 별도 검증하며 대구 실시간 사고 확률로 제공하지 않습니다.
 
-## 사진+G 로컬 시제품 — 승인된 별도 API
+<details>
+<summary><b>🧪 사진 + 해 위치 로컬 시제품 API</b> (펼치기)</summary>
 
-`app.prototype`는 사용자가 발표용으로 선택한 `B_geometry_aug`를 실제 JPEG와 촬영 정보로 실행하는 별도 앱입니다. 2026-11-06 사용자가 아래 사진+G API 계약과 BE·FE 코드의 푸시/PR 생성을 승인했습니다. 운영 `app.main`에는 연결하지 않았으며 운영 적용·배포는 별도 검증 대상입니다.
+<br/>
+
+`app.prototype`은 발표 선정 모델(`B_geometry_aug`)을 실제 JPEG와 촬영 정보로 실행하는 **로컬 전용** 앱입니다. 운영 서버(`app.main`)와는 따로 실행합니다.
 
 - `POST /predict/glare/prototype`: multipart `image`(JPEG 원본, 1MiB·800만 픽셀 이하), `context`(8KiB 이하 JSON). 사진을 축소하거나 G 값을 가정해서 보내지 않습니다.
 - context 필수: `lat`, `lon`, `heading`(북=0, 시계 방향, 360 미만), `focal`(긴 변 기준 정규화 초점거리), `width`, `height`, `captured_at`(시간대 포함), `cloud`(0~10), `sunshine`(0~1), `weather_observed_at`, `weather_source`, `geometry_source`, `projection="legacy_level_assumed"`. 선택 `weather_available_at`. 원본 크기와 촬영 전 1시간 이내 기상 관측을 검사하며, 누락·오래된 기상·촬영 이후 공개 정보를 정상으로 채우지 않습니다.
@@ -91,6 +93,8 @@ python -m pip install -r requirements-prototype.txt
 실행기는 묶음의 wheel/meta/parameters 체크섬을 확인하고 wheel을 임시 폴더에 풀어 공통 AI 코드를 불러옵니다. 기존 시범 패키지를 덮어쓰지 않습니다. API 주소는 `http://127.0.0.1:8766`, 문서는 `/docs`이며 로컬 FE origin 5173만 기본 허용합니다. 다른 origin은 `PROTOTYPE_ALLOWED_ORIGINS`로 명시합니다. 별도 FE의 `/photo-g/` 화면에서 사진과 해당 촬영 정보 JSON을 선택해 분석합니다.
 
 테스트: `python -m unittest discover -s tests -p test_prototype.py -v`. 실제 모델 대조는 `HYBRID_TEST_BUNDLE`, `HYBRID_TEST_IMAGE`, `HYBRID_TEST_CONTEXT`를 비공개 자료 경로로 설정한 경우 실행합니다. CI의 합성 HTTP 경계 테스트와 실제 모델의 정확도 평가는 구분합니다. 도시 CCTV 연결과 미래 경로·운전자 실제 시야/사고 효과 검증은 확장 과제입니다.
+
+</details>
 
 ## 📌 원칙
 
@@ -127,7 +131,7 @@ Render 설정은 `render.yaml`을 사용합니다. 무료 단일 Python 서비�
 
 검수: MODEL_DIR와 `MODEL_BUNDLE_PATH=../AI/models/model2-pilot-v1.zip` 설정 후 `python -m unittest discover -s tests -v` (테스트 도구 `httpx==0.28.1` 필요). `python scripts/verify_model.py`는 실제 JPEG 3장의 예측을 검수합니다. 원본·JPEG95 시범 점수와 fold·버전·해시는 meta.json에 있습니다. 2인 독립 라벨·실기기·국내 도로·시뮬레이터 화면 검증은 아직 남아 있습니다.
 
-## CI/CD
+## 🔄 CI/CD
 
 `.github/workflows/ci-cd.yml`:
 
@@ -136,6 +140,11 @@ Render 설정은 `render.yaml`을 사용합니다. 무료 단일 Python 서비�
 - Render의 해당 deploy가 `live`인지, 배포 commit이 같은지 확인 → 모델 ready·OpenAPI·Swagger·기준 사진 3장 실제 응답을 점검합니다. 이전 서버의 health 200만으로 성공 처리하지 않습니다.
 - Render 자동 배포는 **Off**로 유지합니다. GitHub Actions만 배포를 제어하며 배포 작업은 동시에 하나씩 실행합니다.
 - PR과 feature branch 수동 실행에서는 운영 배포·Render 시크릿 접근을 하지 않습니다.
+
+<details>
+<summary><b>⚙️ 처음 한 번 설정</b> (펼치기 — 저장소 관리자만)</summary>
+
+<br/>
 
 처음 한 번 설정:
 
@@ -151,6 +160,8 @@ gh secret set RENDER_API_KEY --repo Nunchi-ML/Nunchi-ML_BE
 gh variable set RENDER_SERVICE_ID --repo Nunchi-ML/Nunchi-ML_BE --body srv-YOUR_SERVICE_ID
 gh variable set FRONTEND_ORIGIN --repo Nunchi-ML/Nunchi-ML_BE --body https://YOUR_PROJECT.vercel.app
 ```
+
+</details>
 
 새 모델은 새 Release 태그·bundle·SHA를 만들고 deployment/model.json을 PR로 변경합니다. CI에서 검증한 모델과 운영 모델이 같은 설정을 사용합니다. [Render API 배포 명세](https://api-docs.render.com/reference/create-deploy).
 
